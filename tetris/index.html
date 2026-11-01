@@ -1,0 +1,1116 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="data:," />
+    <title>ヒトデテトリス</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0b0e1a;
+        --bg2: #11162b;
+        --panel: #161c36;
+        --panel-line: #2a3358;
+        --ink: #eef1ff;
+        --muted: #9aa5cc;
+        --accent: #ffd23f;
+        --accent2: #37e6c8;
+        --danger: #ff5470;
+      }
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+      html, body { height: 100%; }
+      body {
+        margin: 0;
+        background:
+          radial-gradient(900px 500px at 85% -10%, rgba(55,230,200,.10), transparent 60%),
+          radial-gradient(800px 600px at -10% 110%, rgba(255,84,112,.08), transparent 60%),
+          var(--bg);
+        color: var(--ink);
+        font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP", system-ui, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        min-height: 100dvh;
+        overflow-x: hidden;
+        touch-action: manipulation;
+      }
+      .wrap {
+        width: 100%;
+        max-width: 560px;
+        padding: 14px 14px 22px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .title-hero {
+        border: 1px solid var(--panel-line);
+        border-radius: 16px;
+        overflow: hidden;
+        line-height: 0;
+        background: #0a0d1c;
+        box-shadow: 0 14px 36px rgba(0,0,0,.45), 0 0 0 1px rgba(255,255,255,.03), 0 0 28px rgba(55,200,230,.10);
+      }
+      .title-hero img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+      .sr-only {
+        position: absolute;
+        width: 1px; height: 1px;
+        padding: 0; margin: -1px;
+        overflow: hidden;
+        clip: rect(0,0,0,0);
+        white-space: nowrap;
+        border: 0;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .topbar .tag { color: var(--muted); font-size: 12.5px; font-weight: 600; letter-spacing: .04em; }
+      .btn {
+        appearance: none;
+        border: 1px solid var(--panel-line);
+        background: var(--panel);
+        color: var(--ink);
+        border-radius: 10px;
+        padding: 8px 14px;
+        font-size: 14px;
+        font-weight: 700;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .btn:active { transform: translateY(1px); }
+      .btn.primary { background: var(--accent); border-color: var(--accent); color: #231a00; }
+      .btn.icon { padding: 8px 10px; }
+      .btn.off { opacity: .4; }
+      .top-actions { display: flex; gap: 6px; flex: none; }
+
+      .stage {
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        align-items: flex-start;
+      }
+      .side {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 108px;
+        flex: none;
+      }
+      .panel {
+        background: var(--panel);
+        border: 1px solid var(--panel-line);
+        border-radius: 12px;
+        padding: 9px 10px;
+      }
+      .panel .label {
+        font-size: 11px;
+        letter-spacing: .18em;
+        color: var(--muted);
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .panel .value {
+        font-size: 24px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+        line-height: 1.1;
+      }
+      .panel .value.small { font-size: 18px; }
+      .panel canvas { display: block; margin: 0 auto; max-width: 100%; height: auto; }
+      .combo-value { color: var(--accent2); transition: color .15s; }
+      .combo-hot { color: var(--accent) !important; }
+
+      .board-wrap {
+        position: relative;
+        flex: none;
+      }
+      #board {
+        display: block;
+        background: #0a0d1c;
+        border: 1px solid var(--panel-line);
+        border-radius: 12px;
+        box-shadow: 0 18px 50px rgba(0,0,0,.5), inset 0 0 0 1px rgba(255,255,255,.03);
+      }
+      .overlay {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        background: rgba(7,9,20,.72);
+        backdrop-filter: blur(3px);
+        border-radius: 12px;
+        text-align: center;
+        padding: 16px;
+        z-index: 5;
+      }
+      .overlay[hidden] { display: none; }
+      .overlay .big {
+        font-size: 30px;
+        font-weight: 900;
+        letter-spacing: .08em;
+      }
+      .overlay .sub { color: var(--muted); font-size: 13px; line-height: 1.7; }
+      .overlay .final { font-size: 15px; }
+      .overlay .final b { font-size: 26px; display: block; margin-top: 2px; }
+
+      .touch {
+        display: none;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+      }
+      .touch button {
+        appearance: none;
+        border: 1px solid var(--panel-line);
+        background: var(--panel);
+        color: var(--ink);
+        border-radius: 12px;
+        padding: 14px 0 12px;
+        font-size: 19px;
+        font-family: inherit;
+        cursor: pointer;
+        user-select: none;
+        -webkit-user-select: none;
+        touch-action: none;
+      }
+      .touch button small { display: block; font-size: 10px; color: var(--muted); margin-top: 2px; letter-spacing: .08em; }
+      .touch button:active { background: #232c52; }
+      @media (pointer: coarse), (max-width: 640px) {
+        .touch { display: grid; }
+      }
+      .keys {
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.9;
+        text-align: center;
+      }
+      .keys kbd {
+        background: var(--bg2);
+        border: 1px solid var(--panel-line);
+        border-bottom-width: 2px;
+        border-radius: 5px;
+        padding: 0 5px;
+        font-family: inherit;
+        font-size: 11px;
+        color: var(--ink);
+      }
+      @media (max-width: 640px) { .keys { display: none; } }
+      @media (max-width: 480px) {
+        .side { width: 84px; }
+        .panel .value { font-size: 19px; }
+        .title-hero { border-radius: 12px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <h1 class="sr-only">ヒトデテトリス</h1>
+      <div class="title-hero">
+        <img src="assets/title.webp" alt="ヒトデテトリス — ヒトデのぬいぐるみキャラクターとカラフルなテトリミノのタイトル画像" width="1920" height="1280" fetchpriority="high" />
+      </div>
+      <div class="topbar">
+        <span class="tag">ラインをそろえて消すべ！</span>
+        <div class="top-actions">
+          <button class="btn icon" id="bgmBtn" type="button" aria-label="BGM切替" title="BGM オン/オフ">🎵</button>
+          <button class="btn icon" id="soundBtn" type="button" aria-label="サウンド切替" title="サウンド オン/オフ">🔊</button>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="side">
+          <div class="panel">
+            <div class="label">HOLD</div>
+            <canvas id="holdCanvas" width="84" height="56"></canvas>
+          </div>
+          <div class="panel">
+            <div class="label">SCORE</div>
+            <div class="value" id="score">0</div>
+          </div>
+          <div class="panel">
+            <div class="label">BEST</div>
+            <div class="value small" id="best">0</div>
+          </div>
+          <div class="panel">
+            <div class="label">COMBO</div>
+            <div class="value combo-value" id="combo">—</div>
+          </div>
+        </div>
+
+        <div class="board-wrap" id="boardWrap">
+          <canvas id="board"></canvas>
+          <div class="overlay" id="overlay">
+            <div class="big" id="ovTitle">ヒトデテトリス</div>
+            <div class="sub" id="ovSub">ブロックを積んで、横一列そろえると消えるよ。<br>4ライン同時消しで「TETRIS」！</div>
+            <div class="final" id="ovFinal" hidden>スコア<b id="ovScore">0</b></div>
+            <button class="btn primary" id="startBtn" type="button">▶ スタート</button>
+            <div class="sub" id="ovHint">Enterキーでも始められるよ</div>
+          </div>
+        </div>
+
+        <div class="side">
+          <div class="panel">
+            <div class="label">NEXT</div>
+            <canvas id="nextCanvas" width="84" height="216"></canvas>
+          </div>
+          <div class="panel">
+            <div class="label">LEVEL</div>
+            <div class="value" id="level">1</div>
+          </div>
+          <div class="panel">
+            <div class="label">LINES</div>
+            <div class="value" id="lines">0</div>
+          </div>
+          <button class="btn" id="pauseBtn" type="button">⏸ 一時停止</button>
+        </div>
+      </div>
+
+      <div class="touch" id="touch">
+        <button type="button" data-act="left">◀<small>左</small></button>
+        <button type="button" data-act="right">▶<small>右</small></button>
+        <button type="button" data-act="rotate">⟳<small>回転</small></button>
+        <button type="button" data-act="down">▼<small>落下</small></button>
+        <button type="button" data-act="drop">⬇<small>ハード</small></button>
+        <button type="button" data-act="hold">⇄<small>ホールド</small></button>
+        <button type="button" data-act="left2">◀◀<small>左×2</small></button>
+        <button type="button" data-act="right2">▶▶<small>右×2</small></button>
+        <button type="button" data-act="rotateL">⟲<small>左回転</small></button>
+        <button type="button" data-act="pause">⏸<small>停止</small></button>
+      </div>
+
+      <p class="keys">
+        <kbd>←</kbd><kbd>→</kbd> 移動 ／ <kbd>↓</kbd> ソフトドロップ ／ <kbd>Space</kbd> ハードドロップ<br>
+        <kbd>↑</kbd>・<kbd>X</kbd> 右回転 ／ <kbd>Z</kbd> 左回転 ／ <kbd>C</kbd> ホールド ／ <kbd>P</kbd> 一時停止
+      </p>
+    </div>
+
+    <script>
+    (function () {
+      "use strict";
+
+      // ---------- 基本設定 ----------
+      var COLS = 10, ROWS = 20;
+      var boardCanvas = document.getElementById("board");
+      var bctx = boardCanvas.getContext("2d");
+
+      function fitBoard() {
+        var maxH = Math.min(window.innerHeight * 0.62, 620);
+        var reserve = window.innerWidth <= 480 ? 222 : 268;
+        var maxW = Math.min(window.innerWidth - reserve, 340);
+        var cell = Math.max(16, Math.floor(Math.min(maxH / ROWS, maxW / COLS)));
+        boardCanvas.width = cell * COLS;
+        boardCanvas.height = cell * ROWS;
+        return cell;
+      }
+      var CELL = fitBoard();
+
+      var COLORS = {
+        I: "#37c8e6", J: "#4f7cff", L: "#ff9f2e", O: "#ffd23f",
+        S: "#4ade6e", T: "#c05cff", Z: "#ff5470"
+      };
+      var SHAPES = {
+        I: [[0,0,0,0],[1,1,1,1],[0,0,0,0],[0,0,0,0]],
+        J: [[1,0,0],[1,1,1],[0,0,0]],
+        L: [[0,0,1],[1,1,1],[0,0,0]],
+        O: [[1,1],[1,1]],
+        S: [[0,1,1],[1,1,0],[0,0,0]],
+        T: [[0,1,0],[1,1,1],[0,0,0]],
+        Z: [[1,1,0],[0,1,1],[0,0,0]]
+      };
+      var TYPES = ["I","J","L","O","S","T","Z"];
+      var LINE_SCORES = [0, 100, 300, 500, 800];
+      var LINE_NAMES = ["", "SINGLE!", "DOUBLE!", "TRIPLE!", "TETRIS!!"];
+
+      // ---------- 状態 ----------
+      var grid, current, holdType, canHold, bag, queue;
+      var score, best = 0, lines, level, combo;
+      var state = "ready"; // ready | playing | clearing | paused | over
+      var dropCounter, dropInterval, lastTime, rafId;
+      var shake = 0, flashRows = [], flashTimer = 0, clearPending = [];
+      var particles = [], floaters = [], levelBanner = null;
+      var lockTimer = 0, lockResets = 0;
+      var lastClearWasTetris = false;
+
+      var el = function (id) { return document.getElementById(id); };
+      var scoreEl = el("score"), bestEl = el("best"), levelEl = el("level"),
+          linesEl = el("lines"), comboEl = el("combo"),
+          overlay = el("overlay"), ovTitle = el("ovTitle"), ovSub = el("ovSub"),
+          ovFinal = el("ovFinal"), ovScore = el("ovScore"), ovHint = el("ovHint");
+
+      // ---------- サウンド (WebAudio 簡易シンセ) ----------
+      var audioCtx = null, soundOn = true;
+      function beep(freq, dur, type, vol, when) {
+        if (!soundOn) return;
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === "suspended") audioCtx.resume();
+          var t = audioCtx.currentTime + (when || 0);
+          var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+          o.type = type || "square"; o.frequency.value = freq;
+          g.gain.setValueAtTime(vol || 0.05, t);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+          o.connect(g); g.connect(audioCtx.destination);
+          o.start(t); o.stop(t + dur);
+        } catch (e) {}
+      }
+      function sfx(name, n) {
+        if (name === "move") beep(220, 0.03, "square", 0.02);
+        else if (name === "rotate") beep(330, 0.05, "square", 0.03);
+        else if (name === "lock") beep(140, 0.07, "triangle", 0.07);
+        else if (name === "drop") { beep(90, 0.1, "triangle", 0.1); beep(60, 0.12, "sine", 0.1, 0.02); }
+        else if (name === "hold") { beep(440, 0.05, "sine", 0.05); beep(560, 0.06, "sine", 0.05, 0.05); }
+        else if (name === "clear") {
+          var base = [523, 659, 784];
+          for (var i = 0; i < Math.min(n || 1, 3); i++) beep(base[i], 0.12, "square", 0.05, i * 0.06);
+        }
+        else if (name === "tetris") {
+          [523, 659, 784, 1047, 1319].forEach(function (f, i) { beep(f, 0.16, "square", 0.06, i * 0.07); });
+        }
+        else if (name === "combo") beep(700 + (n || 0) * 60, 0.09, "sawtooth", 0.04);
+        else if (name === "levelup") {
+          [392, 523, 659, 784, 1047].forEach(function (f, i) { beep(f, 0.14, "triangle", 0.07, i * 0.08); });
+        }
+        else if (name === "over") {
+          [440, 349, 262, 196].forEach(function (f, i) { beep(f, 0.22, "triangle", 0.06, i * 0.16); });
+        }
+      }
+      el("soundBtn").addEventListener("click", function () {
+        soundOn = !soundOn;
+        this.textContent = soundOn ? "🔊" : "🔇";
+        if (!soundOn) stopBgm();
+        else { sfx("rotate"); if (state === "playing") startBgm(); }
+      });
+
+      // ---------- BGM (WebAudio チップチューン風ループ) ----------
+      // コロベイニキ風メロディ [MIDIノート, 長さ(8分音符単位)] 全64ステップでループ
+      var BGM_MELODY = [
+        [76,2],[71,1],[72,1],[74,2],[72,1],[71,1],
+        [69,2],[69,1],[72,1],[76,2],[74,1],[72,1],
+        [71,3],[72,1],[74,2],[76,2],
+        [72,2],[69,2],[69,2],[0,2],
+        [74,3],[77,1],[81,2],[79,1],[77,1],
+        [76,3],[72,1],[76,2],[74,1],[72,1],
+        [71,2],[71,1],[72,1],[74,2],[76,2],
+        [72,2],[69,2],[69,2],[0,2]
+      ];
+      // ベースライン (4分音符ごと、全32ステップ)
+      var BGM_BASS = [
+        45,52,45,52, 45,52,45,52, 45,52,45,52, 45,52,45,52,
+        38,45,38,45, 45,52,45,52, 40,47,40,47, 45,52,45,52
+      ];
+      var bgmEvents = {};
+      (function () {
+        var s = 0;
+        BGM_MELODY.forEach(function (ev) {
+          if (ev[0] > 0) bgmEvents[s] = { midi: ev[0], len: ev[1] };
+          s += ev[1];
+        });
+      })();
+      var BGM_STEPS = 64;
+      var bgmOn = true, bgmTimer = null, bgmStep = 0, bgmNextTime = 0;
+      function midiFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
+      function bgmStepDur() {
+        var bpm = Math.min(184, 132 + (level - 1) * 5); // レベルが上がると少し速くなる
+        return 60 / bpm / 2;
+      }
+      function bgmTone(freq, t, dur, type, vol) {
+        var o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = type; o.frequency.value = freq;
+        g.gain.setValueAtTime(0.0001, t);
+        g.gain.exponentialRampToValueAtTime(vol, t + 0.012);
+        g.gain.setValueAtTime(vol, t + Math.max(0.012, dur - 0.03));
+        g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+        o.connect(g); g.connect(audioCtx.destination);
+        o.start(t); o.stop(t + dur + 0.02);
+      }
+      function bgmScheduleStep(step, t) {
+        var ev = bgmEvents[step];
+        if (ev) bgmTone(midiFreq(ev.midi), t, ev.len * bgmStepDur() * 0.92, "square", 0.026);
+        if (step % 2 === 0) {
+          var b = BGM_BASS[step / 2];
+          if (b) bgmTone(midiFreq(b), t, bgmStepDur() * 1.8, "triangle", 0.05);
+        }
+      }
+      function bgmSchedule() {
+        if (!audioCtx) return;
+        while (bgmNextTime < audioCtx.currentTime + 0.12) {
+          bgmScheduleStep(bgmStep, bgmNextTime);
+          bgmNextTime += bgmStepDur();
+          bgmStep = (bgmStep + 1) % BGM_STEPS;
+        }
+      }
+      function startBgm() {
+        if (!bgmOn || !soundOn || bgmTimer) return;
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === "suspended") audioCtx.resume();
+        } catch (e) { return; }
+        bgmStep = 0;
+        bgmNextTime = audioCtx.currentTime + 0.06;
+        bgmTimer = setInterval(bgmSchedule, 27);
+      }
+      function stopBgm() {
+        if (bgmTimer) { clearInterval(bgmTimer); bgmTimer = null; }
+      }
+      el("bgmBtn").addEventListener("click", function () {
+        bgmOn = !bgmOn;
+        this.classList.toggle("off", !bgmOn);
+        if (!bgmOn) stopBgm();
+        else if (state === "playing") startBgm();
+      });
+
+      // ---------- 盤面ロジック ----------
+      function emptyGrid() {
+        var g = [];
+        for (var y = 0; y < ROWS; y++) { g.push(new Array(COLS).fill(null)); }
+        return g;
+      }
+      function newBag() {
+        var b = TYPES.slice();
+        for (var i = b.length - 1; i > 0; i--) {
+          var j = Math.floor(Math.random() * (i + 1));
+          var t = b[i]; b[i] = b[j]; b[j] = t;
+        }
+        return b;
+      }
+      function nextType() {
+        if (queue.length < 7) queue = queue.concat(newBag());
+        return queue.shift();
+      }
+      function spawn(type) {
+        var shape = SHAPES[type].map(function (r) { return r.slice(); });
+        var p = {
+          type: type, shape: shape,
+          x: Math.floor((COLS - shape[0].length) / 2),
+          y: type === "I" ? -1 : 0
+        };
+        while (collides(p.shape, p.x, p.y) && p.y > -3) p.y--;
+        return p;
+      }
+      function collides(shape, px, py) {
+        for (var y = 0; y < shape.length; y++)
+          for (var x = 0; x < shape[y].length; x++) {
+            if (!shape[y][x]) continue;
+            var gx = px + x, gy = py + y;
+            if (gx < 0 || gx >= COLS || gy >= ROWS) return true;
+            if (gy >= 0 && grid[gy][gx]) return true;
+          }
+        return false;
+      }
+      function ghostY() {
+        var y = current.y;
+        while (!collides(current.shape, current.x, y + 1)) y++;
+        return y;
+      }
+      function rotate(shape, dir) {
+        var n = shape.length, out = [];
+        for (var y = 0; y < n; y++) {
+          out.push([]);
+          for (var x = 0; x < n; x++)
+            out[y].push(dir > 0 ? shape[n - 1 - x][y] : shape[x][n - 1 - y]);
+        }
+        return out;
+      }
+      var KICKS = [[0,0],[-1,0],[1,0],[-2,0],[2,0],[0,-1],[-1,-1],[1,-1],[0,1]];
+      function tryRotate(dir) {
+        if (!current || current.type === "O") { if (current) sfx("rotate"); return; }
+        var r = rotate(current.shape, dir);
+        for (var i = 0; i < KICKS.length; i++) {
+          var nx = current.x + KICKS[i][0], ny = current.y + KICKS[i][1];
+          if (!collides(r, nx, ny)) {
+            current.shape = r; current.x = nx; current.y = ny;
+            if (isGrounded()) { lockTimer = 0; if (lockResets < 15) lockResets++; }
+            sfx("rotate");
+            spawnRotateParticles();
+            return;
+          }
+        }
+      }
+      function isGrounded() {
+        return current && collides(current.shape, current.x, current.y + 1);
+      }
+      function move(dx) {
+        if (!current) return;
+        if (!collides(current.shape, current.x + dx, current.y)) {
+          current.x += dx;
+          if (isGrounded()) { lockTimer = 0; if (lockResets < 15) lockResets++; }
+          sfx("move");
+        }
+      }
+      function softDrop() {
+        if (!current) return;
+        if (!collides(current.shape, current.x, current.y + 1)) {
+          current.y++; score += 1; updateHUD();
+        } else {
+          lockPiece();
+        }
+        dropCounter = 0;
+      }
+      function hardDrop() {
+        if (!current) return;
+        var gy = ghostY();
+        var dist = gy - current.y;
+        // 落下トレイル
+        for (var y = 0; y < current.shape.length; y++)
+          for (var x = 0; x < current.shape[y].length; x++) {
+            if (!current.shape[y][x]) continue;
+            for (var ty = current.y + y; ty < gy + y; ty += 2)
+              addParticle((current.x + x + 0.5) * CELL, (ty + 0.5) * CELL,
+                COLORS[current.type], 0, -30, 0.25, 3, 0.5);
+          }
+        current.y = gy;
+        score += dist * 2;
+        shake = Math.max(shake, 3);
+        landingDust();
+        sfx("drop");
+        lockPiece();
+      }
+      function hold() {
+        if (!current || !canHold) return;
+        var t = current.type;
+        if (holdType) {
+          current = spawn(holdType);
+          if (collides(current.shape, current.x, current.y)) return gameOver();
+        } else {
+          current = spawn(nextType());
+          if (collides(current.shape, current.x, current.y)) return gameOver();
+        }
+        holdType = t; canHold = false;
+        dropCounter = 0; lockTimer = 0; lockResets = 0;
+        sfx("hold");
+        drawMinis();
+      }
+      function lockPiece() {
+        if (!current) return;
+        for (var y = 0; y < current.shape.length; y++)
+          for (var x = 0; x < current.shape[y].length; x++) {
+            if (!current.shape[y][x]) continue;
+            var gy = current.y + y;
+            if (gy < 0) return gameOver();
+            grid[gy][current.x + x] = current.type;
+          }
+        sfx("lock");
+        current = null;
+        checkLines();
+      }
+      function checkLines() {
+        var full = [];
+        for (var y = 0; y < ROWS; y++) {
+          var ok = true;
+          for (var x = 0; x < COLS; x++) if (!grid[y][x]) { ok = false; break; }
+          if (ok) full.push(y);
+        }
+        if (full.length === 0) {
+          combo = -1;
+          updateHUD();
+          nextPiece();
+          return;
+        }
+        // 消去アニメーション開始
+        state = "clearing";
+        flashRows = full; clearPending = full; flashTimer = 0;
+        burstRowParticles(full);
+        var n = full.length;
+        combo++;
+        var gained = LINE_SCORES[n] * level;
+        if (combo > 0) gained += 50 * combo * level;
+        score += gained;
+        lines += n;
+        var newLevel = Math.floor(lines / 10) + 1;
+        if (n === 4) { sfx("tetris"); shake = Math.max(shake, 7); lastClearWasTetris = true; }
+        else { sfx("clear", n); shake = Math.max(shake, 2 + n); }
+        if (combo >= 1) sfx("combo", combo);
+        addFloater(LINE_NAMES[n], n === 4 ? "#ffd23f" : "#ffffff", n === 4 ? 40 : 26, ROWS * CELL * 0.38);
+        if (combo >= 1) addFloater(combo + " COMBO!", "#37e6c8", 22, ROWS * CELL * 0.38 + 36);
+        addFloater("+" + gained, "#9aa5cc", 16, ROWS * CELL * 0.38 + (combo >= 1 ? 64 : 34));
+        if (newLevel > level) {
+          level = newLevel;
+          dropInterval = Math.max(60, 1000 * Math.pow(0.82, level - 1));
+          levelBanner = { t: 0, level: level };
+          confetti();
+          sfx("levelup");
+        }
+        if (score > best) { best = score; }
+        updateHUD();
+      }
+      function finishClear() {
+        var full = clearPending.slice().sort(function (a, b) { return a - b; });
+        full.forEach(function (y) { grid.splice(y, 1); grid.unshift(new Array(COLS).fill(null)); });
+        flashRows = []; clearPending = [];
+        state = "playing";
+        nextPiece();
+      }
+      function nextPiece() {
+        current = spawn(nextType());
+        canHold = true;
+        dropCounter = 0; lockTimer = 0; lockResets = 0;
+        if (collides(current.shape, current.x, current.y)) gameOver();
+        drawMinis();
+      }
+      function gameOver() {
+        state = "over";
+        stopBgm();
+        sfx("over");
+        shake = 8;
+        ovTitle.textContent = "ゲームオーバー";
+        ovSub.innerHTML = "おつかれさま！もう一回遊ぶべ。";
+        ovScore.textContent = score.toLocaleString();
+        ovFinal.hidden = false;
+        el("startBtn").textContent = "↻ もう一回";
+        ovHint.textContent = "Enterキーでも始められるよ";
+        overlay.hidden = false;
+      }
+
+      // ---------- エフェクト ----------
+      function addParticle(x, y, color, vx, vy, life, size, alpha) {
+        particles.push({ x: x, y: y, vx: vx, vy: vy, life: life, maxLife: life,
+                         color: color, size: size, alpha: alpha == null ? 1 : alpha });
+        if (particles.length > 900) particles.splice(0, particles.length - 900);
+      }
+      function burstRowParticles(rows) {
+        rows.forEach(function (ry) {
+          for (var x = 0; x < COLS; x++) {
+            var type = grid[ry][x];
+            var color = type ? COLORS[type] : "#ffffff";
+            for (var i = 0; i < 7; i++) {
+              addParticle((x + Math.random()) * CELL, (ry + Math.random()) * CELL, color,
+                (Math.random() - 0.5) * 260, -Math.random() * 240 - 40,
+                0.55 + Math.random() * 0.5, 2 + Math.random() * 4);
+            }
+          }
+          // 横一閃の光
+          for (var s = 0; s < 22; s++) {
+            addParticle(Math.random() * COLS * CELL, (ry + 0.5) * CELL, "#ffffff",
+              (Math.random() - 0.5) * 500, (Math.random() - 0.5) * 30,
+              0.3 + Math.random() * 0.2, 1.5 + Math.random() * 2);
+          }
+        });
+      }
+      function landingDust() {
+        if (!current) return;
+        var gy = current.y;
+        for (var x = 0; x < current.shape[0].length; x++) {
+          for (var y = current.shape.length - 1; y >= 0; y--) {
+            if (!current.shape[y][x]) continue;
+            for (var i = 0; i < 4; i++)
+              addParticle((current.x + x + Math.random()) * CELL, (gy + y + 1) * CELL - 2,
+                "#aab4dd", (Math.random() - 0.5) * 160, -Math.random() * 40,
+                0.3 + Math.random() * 0.2, 2 + Math.random() * 2.5, 0.7);
+            break;
+          }
+        }
+      }
+      function spawnRotateParticles() {
+        if (!current) return;
+        var cx = (current.x + current.shape[0].length / 2) * CELL;
+        var cy = (current.y + current.shape.length / 2) * CELL;
+        for (var i = 0; i < 6; i++) {
+          var a = Math.random() * Math.PI * 2;
+          addParticle(cx, cy, COLORS[current.type], Math.cos(a) * 90, Math.sin(a) * 90,
+            0.3, 2 + Math.random() * 2, 0.8);
+        }
+      }
+      function confetti() {
+        var cols = ["#ffd23f", "#37e6c8", "#ff5470", "#4f7cff", "#c05cff", "#4ade6e"];
+        for (var i = 0; i < 130; i++) {
+          addParticle(Math.random() * COLS * CELL, -10 - Math.random() * 80,
+            cols[i % cols.length], (Math.random() - 0.5) * 90, 60 + Math.random() * 160,
+            1.1 + Math.random() * 0.7, 3 + Math.random() * 4);
+        }
+      }
+      function addFloater(text, color, size, y) {
+        floaters.push({ text: text, color: color, size: size, y: y, t: 0, life: 1.15 });
+      }
+      function stepEffects(dt) {
+        if (shake > 0) shake = Math.max(0, shake - dt * 26);
+        for (var i = particles.length - 1; i >= 0; i--) {
+          var p = particles[i];
+          p.life -= dt;
+          if (p.life <= 0) { particles.splice(i, 1); continue; }
+          p.vy += 620 * dt;
+          p.x += p.vx * dt; p.y += p.vy * dt;
+        }
+        for (var j = floaters.length - 1; j >= 0; j--) {
+          floaters[j].t += dt;
+          if (floaters[j].t >= floaters[j].life) floaters.splice(j, 1);
+        }
+        if (levelBanner) {
+          levelBanner.t += dt;
+          if (levelBanner.t > 1.6) levelBanner = null;
+        }
+        if (state === "clearing") {
+          flashTimer += dt;
+          if (flashTimer >= 0.28) finishClear();
+        }
+      }
+
+      // ---------- 描画 ----------
+      function drawBlock(ctx, x, y, cell, type, alpha) {
+        var c = COLORS[type];
+        ctx.globalAlpha = alpha == null ? 1 : alpha;
+        ctx.fillStyle = c;
+        var r = Math.max(2, cell * 0.16);
+        var px = x * cell + 1, py = y * cell + 1, s = cell - 2;
+        ctx.beginPath();
+        ctx.roundRect(px, py, s, s, r);
+        ctx.fill();
+        ctx.fillStyle = "rgba(255,255,255,.28)";
+        ctx.beginPath();
+        ctx.roundRect(px + 2, py + 2, s - 4, s * 0.36, r * 0.7);
+        ctx.fill();
+        ctx.fillStyle = "rgba(0,0,0,.18)";
+        ctx.beginPath();
+        ctx.roundRect(px + 2, py + s * 0.62, s - 4, s * 0.32, r * 0.7);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      function draw() {
+        var w = COLS * CELL, h = ROWS * CELL;
+        bctx.save();
+        bctx.clearRect(0, 0, w, h);
+        if (shake > 0.2) {
+          bctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+        }
+        // グリッド
+        bctx.strokeStyle = "rgba(120,135,200,.12)";
+        bctx.lineWidth = 1;
+        bctx.beginPath();
+        for (var gx = 1; gx < COLS; gx++) { bctx.moveTo(gx * CELL + .5, 0); bctx.lineTo(gx * CELL + .5, h); }
+        for (var gy = 1; gy < ROWS; gy++) { bctx.moveTo(0, gy * CELL + .5); bctx.lineTo(w, gy * CELL + .5); }
+        bctx.stroke();
+        // 積みブロック
+        for (var y = 0; y < ROWS; y++)
+          for (var x = 0; x < COLS; x++) {
+            if (!grid[y][x]) continue;
+            if (flashRows.indexOf(y) >= 0) {
+              var f = flashTimer / 0.28;
+              var blink = Math.sin(f * Math.PI * 5) > 0;
+              bctx.globalAlpha = 1 - f * 0.6;
+              bctx.fillStyle = blink ? "#ffffff" : COLORS[grid[y][x]];
+              bctx.fillRect(x * CELL + 1, y * CELL + 1, CELL - 2, CELL - 2);
+              bctx.globalAlpha = 1;
+            } else {
+              drawBlock(bctx, x, y, CELL, grid[y][x]);
+            }
+          }
+        if (current && state !== "clearing") {
+          // ゴースト
+          var gyv = ghostY();
+          if (gyv !== current.y) {
+            for (var sy = 0; sy < current.shape.length; sy++)
+              for (var sx = 0; sx < current.shape[sy].length; sx++) {
+                if (!current.shape[sy][sx]) continue;
+                var yy = gyv + sy;
+                if (yy < 0) continue;
+                bctx.strokeStyle = COLORS[current.type];
+                bctx.globalAlpha = 0.4;
+                bctx.lineWidth = 1.5;
+                bctx.strokeRect((current.x + sx) * CELL + 2.5, yy * CELL + 2.5, CELL - 5, CELL - 5);
+                bctx.globalAlpha = 1;
+              }
+          }
+          // 本体
+          for (var by = 0; by < current.shape.length; by++)
+            for (var bx = 0; bx < current.shape[by].length; bx++) {
+              if (!current.shape[by][bx]) continue;
+              var py2 = current.y + by;
+              if (py2 < 0) continue;
+              var ground = isGrounded();
+              drawBlock(bctx, current.x + bx, py2, CELL, current.type,
+                ground && lockResets < 15 ? 0.75 + 0.25 * Math.abs(Math.sin(performance.now() / 90)) : 1);
+            }
+        }
+        // パーティクル
+        particles.forEach(function (p) {
+          bctx.globalAlpha = Math.max(0, (p.life / p.maxLife)) * p.alpha;
+          bctx.fillStyle = p.color;
+          bctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+        });
+        bctx.globalAlpha = 1;
+        // フローティングテキスト
+        floaters.forEach(function (f) {
+          var k = f.t / f.life;
+          var scale = k < 0.18 ? 0.5 + (k / 0.18) * 0.65 : 1.15 - (k - 0.18) * 0.18;
+          var alpha = k > 0.65 ? 1 - (k - 0.65) / 0.35 : 1;
+          bctx.save();
+          bctx.translate(w / 2, f.y - k * 34);
+          bctx.scale(scale, scale);
+          bctx.globalAlpha = alpha;
+          bctx.font = "900 " + f.size + "px 'Hiragino Kaku Gothic ProN', sans-serif";
+          bctx.textAlign = "center"; bctx.textBaseline = "middle";
+          bctx.lineWidth = 5; bctx.strokeStyle = "rgba(5,8,20,.85)";
+          bctx.strokeText(f.text, 0, 0);
+          bctx.fillStyle = f.color;
+          bctx.fillText(f.text, 0, 0);
+          bctx.restore();
+        });
+        // レベルアップバナー
+        if (levelBanner) {
+          var t = levelBanner.t;
+          var a = t < 0.15 ? t / 0.15 : (t > 1.25 ? Math.max(0, 1 - (t - 1.25) / 0.35) : 1);
+          var sc = t < 0.22 ? 0.6 + (t / 0.22) * 0.4 : 1;
+          bctx.save();
+          bctx.globalAlpha = a * 0.9;
+          bctx.fillStyle = "rgba(10,13,30,.55)";
+          bctx.fillRect(0, h * 0.4, w, h * 0.2);
+          bctx.translate(w / 2, h * 0.5);
+          bctx.scale(sc, sc);
+          bctx.globalAlpha = a;
+          bctx.font = "900 34px 'Hiragino Kaku Gothic ProN', sans-serif";
+          bctx.textAlign = "center"; bctx.textBaseline = "middle";
+          bctx.lineWidth = 6; bctx.strokeStyle = "rgba(5,8,20,.9)";
+          var msg = "LEVEL " + levelBanner.level + "!";
+          bctx.strokeText(msg, 0, 0);
+          bctx.fillStyle = "#ffd23f";
+          bctx.fillText(msg, 0, 0);
+          bctx.restore();
+        }
+        bctx.restore();
+      }
+      function drawMini(canvas, type, dim) {
+        var ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!type) return;
+        var shape = SHAPES[type];
+        var cell = 17;
+        var w = shape[0].length * cell, h = shape.length * cell;
+        var ox = (canvas.width - w) / 2, oy = (canvas.height - h) / 2;
+        ctx.save();
+        ctx.translate(ox, oy);
+        for (var y = 0; y < shape.length; y++)
+          for (var x = 0; x < shape[y].length; x++)
+            if (shape[y][x]) {
+              // ミニ用に簡易描画
+              ctx.globalAlpha = dim ? 0.35 : 1;
+              ctx.fillStyle = COLORS[type];
+              ctx.beginPath();
+              ctx.roundRect(x * cell + 1, y * cell + 1, cell - 2, cell - 2, 3);
+              ctx.fill();
+              ctx.fillStyle = "rgba(255,255,255,.28)";
+              ctx.fillRect(x * cell + 3, y * cell + 3, cell - 6, (cell - 2) * 0.34);
+            }
+        ctx.restore();
+        ctx.globalAlpha = 1;
+      }
+      function drawMinis() {
+        drawMini(el("holdCanvas"), holdType, !canHold);
+        var nc = el("nextCanvas");
+        var ctx = nc.getContext("2d");
+        ctx.clearRect(0, 0, nc.width, nc.height);
+        var upcoming = queue.slice(0, 4);
+        // 不足分は仮バッグで補う表示のみ
+        while (upcoming.length < 4) upcoming = upcoming.concat(newBag());
+        upcoming.slice(0, 4).forEach(function (type, i) {
+          var sub = document.createElement("canvas");
+          sub.width = nc.width; sub.height = 52;
+          drawMini(sub, type, false);
+          ctx.drawImage(sub, 0, i * 54);
+        });
+      }
+
+      // ---------- HUD ----------
+      function updateHUD() {
+        scoreEl.textContent = score.toLocaleString();
+        bestEl.textContent = best.toLocaleString();
+        levelEl.textContent = level;
+        linesEl.textContent = lines;
+        if (combo >= 1) {
+          comboEl.textContent = combo + " 連";
+          comboEl.classList.toggle("combo-hot", combo >= 3);
+        } else {
+          comboEl.textContent = "—";
+          comboEl.classList.remove("combo-hot");
+        }
+      }
+
+      // ---------- メインループ ----------
+      function loop(now) {
+        rafId = requestAnimationFrame(loop);
+        var dt = Math.min(0.05, (now - lastTime) / 1000 || 0);
+        lastTime = now;
+        if (state === "playing" && current) {
+          dropCounter += dt * 1000;
+          if (dropCounter >= dropInterval) {
+            if (!collides(current.shape, current.x, current.y + 1)) {
+              current.y++;
+            }
+            dropCounter = 0;
+          }
+          if (isGrounded()) {
+            lockTimer += dt;
+            if (lockTimer >= 0.5 || (lockResets >= 15 && lockTimer >= 0.25)) {
+              lockPiece();
+            }
+          } else {
+            lockTimer = 0;
+          }
+        }
+        stepEffects(dt);
+        draw();
+      }
+
+      // ---------- ゲーム開始 / 停止 ----------
+      function startGame() {
+        grid = emptyGrid();
+        bag = newBag(); queue = newBag().concat(newBag());
+        score = 0; lines = 0; level = 1; combo = -1;
+        holdType = null; canHold = true;
+        dropInterval = 1000; dropCounter = 0;
+        particles = []; floaters = []; flashRows = []; clearPending = [];
+        levelBanner = null; shake = 0;
+        state = "playing";
+        overlay.hidden = true;
+        ovFinal.hidden = true;
+        nextPiece();
+        updateHUD();
+        sfx("levelup");
+        startBgm();
+      }
+      function togglePause() {
+        if (state === "playing" || state === "clearing") {
+          state = state === "playing" ? "paused" : state;
+          if (state === "paused") {
+            stopBgm();
+            ovTitle.textContent = "一時停止中";
+            ovSub.textContent = "ちょっと休憩だべ。";
+            ovFinal.hidden = true;
+            el("startBtn").textContent = "▶ つづける";
+            ovHint.textContent = "Pキーでも再開できるよ";
+            overlay.hidden = false;
+          }
+        } else if (state === "paused") {
+          state = "playing";
+          overlay.hidden = true;
+          startBgm();
+        }
+      }
+      el("startBtn").addEventListener("click", function () {
+        if (state === "paused") togglePause();
+        else startGame();
+      });
+      el("pauseBtn").addEventListener("click", togglePause);
+
+      // ---------- 入力 ----------
+      var keyRepeat = {};
+      document.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") {
+          if (state === "ready" || state === "over") { startGame(); e.preventDefault(); }
+          else if (state === "paused") { togglePause(); e.preventDefault(); }
+          return;
+        }
+        if (e.key === "p" || e.key === "P" || e.key === "Escape") {
+          if (state === "playing" || state === "paused") { togglePause(); e.preventDefault(); }
+          return;
+        }
+        if (state !== "playing") return;
+        switch (e.key) {
+          case "ArrowLeft": move(-1); e.preventDefault(); break;
+          case "ArrowRight": move(1); e.preventDefault(); break;
+          case "ArrowDown": softDrop(); e.preventDefault(); break;
+          case "ArrowUp": case "x": case "X": tryRotate(1); e.preventDefault(); break;
+          case "z": case "Z": tryRotate(-1); e.preventDefault(); break;
+          case " ": hardDrop(); e.preventDefault(); break;
+          case "c": case "C": hold(); e.preventDefault(); break;
+        }
+      });
+      // 左右・下のキーリピート(DAS風)
+      var held = {};
+      document.addEventListener("keydown", function (e) {
+        if (state !== "playing") return;
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight" || e.key === "ArrowDown") held[e.key] = performance.now();
+      });
+      document.addEventListener("keyup", function (e) { delete held[e.key]; });
+      setInterval(function () {
+        if (state !== "playing") return;
+        var now = performance.now();
+        Object.keys(held).forEach(function (k) {
+          if (now - held[k] > 170) {
+            if (k === "ArrowLeft") move(-1);
+            else if (k === "ArrowRight") move(1);
+            else if (k === "ArrowDown") softDrop();
+            held[k] = now - 110; // 以降は約60ms間隔
+          }
+        });
+      }, 16);
+
+      // タッチボタン
+      var touchTimers = {};
+      function bindTouch(btn) {
+        var act = btn.getAttribute("data-act");
+        function fire() {
+          if (act === "pause") { togglePause(); return; }
+          if (state !== "playing") return;
+          if (act === "left") move(-1);
+          else if (act === "right") move(1);
+          else if (act === "left2") { move(-1); move(-1); }
+          else if (act === "right2") { move(1); move(1); }
+          else if (act === "down") softDrop();
+          else if (act === "rotate") tryRotate(1);
+          else if (act === "rotateL") tryRotate(-1);
+          else if (act === "drop") hardDrop();
+          else if (act === "hold") hold();
+        }
+        btn.addEventListener("pointerdown", function (e) {
+          e.preventDefault();
+          fire();
+          if (act === "left" || act === "right" || act === "down") {
+            touchTimers[act] = setTimeout(function () {
+              touchTimers[act] = setInterval(fire, 55);
+            }, 180);
+          }
+        });
+        ["pointerup", "pointerleave", "pointercancel"].forEach(function (ev) {
+          btn.addEventListener(ev, function () {
+            clearTimeout(touchTimers[act]); clearInterval(touchTimers[act]);
+          });
+        });
+        btn.addEventListener("contextmenu", function (e) { e.preventDefault(); });
+      }
+      Array.prototype.forEach.call(document.querySelectorAll("#touch button"), bindTouch);
+
+      // ボード上のスワイプ/タップ操作
+      var tsX = 0, tsY = 0, tsT = 0;
+      boardCanvas.addEventListener("pointerdown", function (e) {
+        tsX = e.clientX; tsY = e.clientY; tsT = performance.now();
+      });
+      boardCanvas.addEventListener("pointerup", function (e) {
+        if (state !== "playing") return;
+        var dx = e.clientX - tsX, dy = e.clientY - tsY;
+        var adx = Math.abs(dx), ady = Math.abs(dy);
+        if (Math.max(adx, ady) < 18) { tryRotate(1); return; }
+        if (ady > adx) {
+          if (dy > 60) hardDrop(); else softDrop();
+        } else {
+          var steps = Math.round(dx / CELL);
+          for (var i = 0; i < Math.abs(steps); i++) move(steps > 0 ? 1 : -1);
+        }
+      });
+
+      window.addEventListener("resize", function () {
+        CELL = fitBoard();
+        drawMinis();
+      });
+
+      // ---------- 初期化 ----------
+      grid = emptyGrid();
+      queue = newBag().concat(newBag());
+      score = 0; lines = 0; level = 1; combo = -1;
+      holdType = null; canHold = true; current = null;
+      dropInterval = 1000; dropCounter = 0;
+      updateHUD();
+      drawMinis();
+      lastTime = performance.now();
+      rafId = requestAnimationFrame(loop);
+    })();
+    </script>
+  </body>
+</html>
