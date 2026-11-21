@@ -219,6 +219,22 @@ const engine = new Engine(GODOT_CONFIG);
 		</script>
 				<script defer src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": "316bb3973b9b42a9b01627f85a605195"}'></script>
 	<!-- hitode-throw v1.0 -->
+
+<style>
+#rotate-hint{position:fixed;left:0;right:0;bottom:0;z-index:50;display:none;padding:10px 12px;background:rgba(4,20,40,.88);color:#dff2ff;font:14px/1.5 sans-serif;text-align:center;pointer-events:none}
+@media (orientation:portrait){#rotate-hint{display:block}}
+#fs-btn{position:fixed;top:10px;right:10px;z-index:51;width:44px;height:44px;border-radius:10px;border:1px solid rgba(255,255,255,.35);background:rgba(4,20,40,.55);color:#fff;font-size:20px;cursor:pointer}
+</style>
+<div id="rotate-hint">📱 このゲームは横画面用です。スマホを横向きにすると、大きく遊べます</div>
+<button id="fs-btn" title="全画面">⛶</button>
+<script>
+document.getElementById('fs-btn').addEventListener('click',function(){
+  var c=document.getElementById('canvas');
+  if(c&&c.requestFullscreen){c.requestFullscreen().then(function(){
+    if(screen.orientation&&screen.orientation.lock){screen.orientation.lock('landscape').catch(function(){});}
+  }).catch(function(){});}
+});
+</script>
 </body>
 </html>
 
