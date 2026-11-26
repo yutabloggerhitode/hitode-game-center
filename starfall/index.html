@@ -92,7 +92,92 @@ body {
 		</style>
 		<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
 <link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
-
+<style>
+/* PROJECT STARFALL v1.7.5 - deterministic Web pillarbox.
+   The Web export uses canvas_resize_policy=0 (None): the engine
+   never resizes the canvas, and the engine window size follows
+   canvas.width/height. So this page owns the canvas element: the
+   fit script below sizes it, and the engine sees exactly that
+   window. On wide (PC landscape) windows the canvas is the
+   largest 720:1280 box that fits, centered on black; on portrait
+   windows it fills the window, exactly like the old policy=2. */
+html, body {
+	height: 100%;
+}
+body {
+	background-color: #000;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+#canvas {
+	display: block;
+	margin: 0 auto;
+}
+</style>
+<script>
+(function () {
+	'use strict';
+	var BASE_ASPECT = 720 / 1280; // 0.5625, the design field
+	function sfFitCanvas() {
+		var canvas = document.getElementById('canvas');
+		if (!canvas) {
+			return;
+		}
+		var vw = window.innerWidth;
+		var vh = window.innerHeight;
+		if (!vw || !vh) {
+			return;
+		}
+		var cssW, cssH;
+		if (vw / vh > BASE_ASPECT) {
+			// Wide window: largest 720:1280 box (height-bound).
+			cssH = vh;
+			cssW = Math.floor(vh * BASE_ASPECT);
+		} else {
+			// Portrait window: fill it exactly (phone behavior).
+			cssW = vw;
+			cssH = vh;
+		}
+		var scale = window.devicePixelRatio || 1;
+		var bw = Math.floor(cssW * scale);
+		var bh = Math.floor(cssH * scale);
+		// Assign only on change: setting canvas.width resets the
+		// drawing buffer even when the value is unchanged.
+		if (canvas.width !== bw) {
+			canvas.width = bw;
+		}
+		if (canvas.height !== bh) {
+			canvas.height = bh;
+		}
+		var sw = cssW + 'px';
+		var sh = cssH + 'px';
+		if (canvas.style.width !== sw) {
+			canvas.style.width = sw;
+		}
+		if (canvas.style.height !== sh) {
+			canvas.style.height = sh;
+		}
+	}
+	function sfInitFit() {
+		sfFitCanvas();
+		window.addEventListener('resize', sfFitCanvas);
+		window.addEventListener('orientationchange', sfFitCanvas);
+		if (window.visualViewport) {
+			window.visualViewport.addEventListener('resize', sfFitCanvas);
+		}
+		// Stay authoritative for the life of the page: the checks
+		// above are no-ops unless something else resized the
+		// canvas (browser UI, zoom, late layout).
+		window.setInterval(sfFitCanvas, 250);
+	}
+	if (document.readyState === 'loading') {
+		document.addEventListener('DOMContentLoaded', sfInitFit);
+	} else {
+		sfInitFit();
+	}
+})();
+</script>
 	</head>
 	<body>
 		<canvas id="canvas">
@@ -111,7 +196,7 @@ body {
 
 		<script src="index.js"></script>
 		<script>
-const GODOT_CONFIG = {"args":[],"canvasResizePolicy":2,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":31917988,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
+const GODOT_CONFIG = {"args":[],"canvasResizePolicy":0,"emscriptenPoolSize":8,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":false,"fileSizes":{"index.pck":31917780,"index.wasm":39514754},"focusCanvas":true,"gdextensionLibs":[],"godotPoolSize":4};
 const GODOT_THREADS_ENABLED = false;
 const engine = new Engine(GODOT_CONFIG);
 
